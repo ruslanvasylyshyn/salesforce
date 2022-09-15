@@ -1,0 +1,36 @@
+trigger PreventMultiplePrimaryWorkplace on AccountContact__c (before insert, before Update) {
+
+    List<AccountContact__c> recordsToProcess = New List<AccountContact__c>();
+    List<Id> accountIds = New List<Id>();
+    List<Id> contactIds = New List<Id>();
+    
+    If(Trigger.isBefore && (Trigger.IsInsert || Trigger.IsUpdate))
+    {
+        For(AccountContact__c EveryRelationshipRecord : Trigger.New)
+        {
+            If(EveryRelationshipRecord.isPrimary__c == TRUE)
+            {
+                recordsToProcess.add(EveryRelationshipRecord);
+                accountIds.add(EveryRelationshipRecord.AccountId__c);
+                contactIds.add(EveryRelationshipRecord.ContactId__c);
+            }
+        }
+    }
+
+    List<AccountContact__c> existingRecords = [Select id, ContactId__c, AccountId__c, isPrimary__c 
+                                               FROM AccountContact__c WHERE isPrimary__c = TRUE 
+                                               AND Id !=: recordsToProcess AND AccountId__c =: accountIds];
+
+        If(recordsToProcess.isEmpty()) return;
+        
+        For(AccountContact__c junctionObj :recordsToProcess){
+            For(AccountContact__c EveryExistingRecord : existingRecords)
+            {
+                If(junctionObj.AccountId__c == EveryExistingRecord.AccountId__c)
+                   {
+                        junctionObj.addError('There is already one Primary Contact exists for this Workplace');
+                   }
+            
+            }
+        }
+}
